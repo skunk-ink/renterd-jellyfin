@@ -3,26 +3,23 @@
 - [Introduction](#introduction)
 - [Features](#features)
 - [Prerequisites](#prerequisites)
-- [Installation](#installation)
-    - [1. Clone the Repository](#1-clone-the-repository)
-    - [2. Deploy the Docker Image](#2-deploy-the-docker-image)
 - [Configuration](#configuration)
     - [Environment Variables](#environment-variables)
-    - [Docker Compose Setup with `renterd`](#docker-compose-setup-with-renterd)
+    - [Docker Compose Setup](#docker-compose-setup)
 - [Usage](#usage)
-    - [Starting the Services](#starting-the-services)
+    - [Clone the Repository](#clone-the-repository)
+    - [Deploy the Docker Image](#deploy-the-docker-image)
     - [Accessing Jellyfin](#accessing-jellyfin)
-- [Volumes and Data Persistence](#volumes-and-data-persistence)
+    - [Updating the Container](#updating-the-container)
 - [Security Considerations](#security-considerations)
 - [Troubleshooting](#troubleshooting)
-- [Updating the Container](#updating-the-container)
 - [License](#license)
 
-## Introduction
+# Introduction
 
 This repository provides a custom [Jellyfin](https://jellyfin.org/) docker image with integrated [Rclone](https://rclone.org/) support to streamline setup with `renterd`. Providing a quick and easy method to begin streaming media stored on the Sia network. 
 
-## Features
+# Features
 
 - **Jellyfin Integration:** Access and stream your `renterd` media library via Jellyfin's intuitive web interface and apps.
 - **Rclone:** Mounts `renterd` through its S3 endpoint as `/mnt/renterd` within the container.
@@ -30,7 +27,7 @@ This repository provides a custom [Jellyfin](https://jellyfin.org/) docker image
 - **Persistent Storage:** Configuration and cache data are persisted using Docker volumes.
 - **FUSE Support:** Enables filesystem mounting with appropriate permissions.
 
-## Prerequisites
+# Prerequisites
 
 Before setting up the custom Jellyfin Docker container, ensure you have the following:
 
@@ -38,32 +35,7 @@ Before setting up the custom Jellyfin Docker container, ensure you have the foll
 - **Docker Compose:** Installed to orchestrate multi-container setups. Install Docker Compose
 - **`renterd` Instance:** A running [`renterd`](https://github.com/siafoundation/renterd) service with a configured S3 storage endpoint.
 
-## Installation
-
-### 1. Clone the Repository
-
-First, clone this repository to your local machine:
-
-```bash
-git clone https://github.com/skunk-ink/renterd-jellyfin.git
-cd renterd-jellyfin
-```
-
-### 2. Deploy the Docker Image
-
-Deploy the Jellyfin container:
-
-```bash
-docker compose up -d
-```
-
-**Explanation:**
-
-- **`docker compose up -d`**: Builds the docker services as defined in the `docker-compose.yml` file.
-
-*Ensure you're in the project directory containing the `docker-compose.yml` file.*
-
-## Configuration
+# Configuration
 
 ### Environment Variables
 
@@ -78,26 +50,14 @@ S3_ACCESS_KEY_ID=your_access_key
 S3_SECRET_ACCESS_KEY=your_secret_key
 ```
 
-**Replace the placeholders** `your_bucket_name`, `your_access_key`, and `your_secret_key` with the S3 details you configured in `renterd`. You do not need to change the `S3_ENDPOINT_URL` unless you have changed `renterd`'s container name in your `docker-compose.yml`.
+**Replace the placeholders** `your_bucket_name`, `your_access_key`, and `your_secret_key` with your `renterd` S3 details. You do not need to change the `S3_ENDPOINT_URL` unless you have changed `renterd`'s container name in your `docker-compose.yml` or would like to specify a different port.
 
-### Docker Compose Setup with `renterd`
-
-The provided `docker-compose.yml` orchestrates the `renterd` and `jellyfin` services:
+### Docker Compose Setup
 
 **Sample `docker-compose.yml`:**
 
 ```yaml
 services:
-  renterd:
-    image: ghcr.io/siafoundation/renterd
-    restart: always
-    container_name: renterd
-    volumes:
-      - ./renterd/:/data
-    ports:
-      - 9980:9980
-      - 8080:8080
-
   jellyfin:
     image: skunkink/renterd-jellyfin
     restart: always
@@ -118,16 +78,34 @@ services:
       - /dev/fuse
     security_opt:
       - apparmor:unconfined
+```
+
+If you are running `renterd` in docker, you can add the following to the end of your `jellyfin` service. This will ensure that `renterd` is running before attempting to create a S3 mount point.
+
+```yaml
     depends_on:
       renterd:
         condition: service_started
 ```
 
-## Usage
+# Usage
 
-### Starting the Services
+## Setup
 
-Once you've configured the `.env` and `docker-compose.yml` files, start the services using Docker Compose:
+### Clone the Repository
+
+First, clone this repository to your local machine:
+
+```bash
+git clone https://github.com/skunk-ink/renterd-jellyfin.git
+cd renterd-jellyfin
+```
+
+### Deploy the Docker Image
+
+***Note:** Before you deploy the docker image, make sure you have created both a `.env` and `docker-compose.yml` as explained in the [configuration](#configuration) section.*
+
+**Deploy the Jellyfin container using:**
 
 ```bash
 docker compose up -d
@@ -135,10 +113,11 @@ docker compose up -d
 
 **Explanation:**
 
-- **`up -d`**: Builds, (re)creates, starts, and attaches to containers in detached mode.
+- **`docker compose up -d`**: Builds the docker services as defined in the `docker-compose.yml` file.
 
+  ***Ensure you're in the project directory containing the `docker-compose.yml` file.***
 
-### Accessing Jellyfin
+## Accessing Jellyfin
 
 After successfully starting the services, access the Jellyfin web interface:
 
@@ -148,28 +127,7 @@ After successfully starting the services, access the Jellyfin web interface:
     
 2. **Jellyfin Setup:**
     - **First-Time Setup:** Follow the on-screen instructions to set up your Jellyfin server.
-    - **Media Libraries:** When adding libraries, point `/mnt/renterd`.
-
-**Note:** Ensure that the directories specified in the `docker-compose.yml` exist and have appropriate permissions.
-
-## Security Considerations
-
-- **Environment Variables:**
-    - Store sensitive information like `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY` securely in the `.env`.
-- **Network Exposure:**
-    - Expose only necessary ports. If deploying in a production environment, consider using a reverse proxy with HTTPS.
-
-## Troubleshooting
-
-### Checking Logs
-
-To inspect the logs of the Jellyfin container:
-
-```bash
-docker compose logs -f jellyfin
-```
-
-Press `Ctrl + C` to exit the log view.
+    - **Media Libraries:** When adding libraries, your `renterd` media can be located under `/mnt/renterd`.
 
 ## Updating the Container
 
@@ -184,11 +142,28 @@ docker compose pull
 1. **Redeploy the Container:**
 
 ```bash
-docker compose up -d jellyfin
+docker compose up -d
 ```
 
----
+# Security Considerations
 
-## License
+- **Environment Variables:**
+    - Store sensitive information like your `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY` securely in the `.env` file.
+- **Network Exposure:**
+    - Expose only necessary ports. If deploying in a production environment, consider using a reverse proxy with HTTPS.
+
+# Troubleshooting
+
+### Checking Logs
+
+To inspect the logs of the Jellyfin container:
+
+```bash
+docker compose logs -f jellyfin
+```
+
+Press `Ctrl + C` to exit the log view.
+
+# License
 
 This project is licensed under the [MIT License](./LICENSE).
